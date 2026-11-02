@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Gestão de Estoque</title>
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-light">
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="#"><i class="fa-solid fa-boxes-stacked me-2"></i>Controle de Estoque</a>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-light btn-sm" onclick="exportToJSON()"><i class="fa-solid fa-download me-1"></i> Exportar</button>
+        <button class="btn btn-outline-light btn-sm" onclick="document.getElementById('fileImport').click()"><i class="fa-solid fa-upload me-1"></i> Importar</button>
+        <input type="file" id="fileImport" accept=".json" style="display:none" onchange="importFromJSON(event)" />
+      </div>
+    </div>
+  </nav>
+
+  <div class="container my-4">
+    
+    <!-- Painel de Estatísticas -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="card card-stat border-primary border-3 border-start">
+          <div class="card-body">
+            <h6 class="text-muted mb-1">Total de Itens</h6>
+            <h3 id="statTotal" class="fw-bold mb-0">0</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card card-stat border-warning border-3 border-start">
+          <div class="card-body">
+            <h6 class="text-muted mb-1">Duplicidades Encontradas</h6>
+            <h3 id="statDuplicates" class="fw-bold text-warning mb-0">0</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card card-stat border-success border-3 border-start">
+          <div class="card-body">
+            <h6 class="text-muted mb-1">Prateleiras Registradas</h6>
+            <h3 id="statShelves" class="fw-bold mb-0">0</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card card-stat border-info border-3 border-start">
+          <div class="card-body">
+            <h6 class="text-muted mb-1">Qtd. Total Estocada</h6>
+            <h3 id="statQuantity" class="fw-bold mb-0">0</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Abas de Navegação -->
+    <ul class="nav nav-tabs mb-3" id="stockTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#search-panel" type="button"><i class="fa-solid fa-magnifying-glass me-2"></i>Consulta Rápida</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="list-tab" data-bs-toggle="tab" data-bs-target="#list-panel" type="button"><i class="fa-solid fa-table me-2"></i>Tabela Geral</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      
+      <!-- ABA 1: CONSULTA RÁPIDA (Estilo da aba 'Pesquisar' da planilha) -->
+      <div class="tab-pane fade show active" id="search-panel" role="tabpanel">
+        <div class="card shadow-sm">
+          <div class="card-body p-4">
+            <h5 class="card-title mb-3"><i class="fa-solid fa-barcode me-2"></i>Pesquisa Individual de Item</h5>
+            <div class="input-group input-group-lg mb-4">
+              <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <input type="text" id="quickSearchInput" class="form-control" placeholder="Digite o Código (Ex: 1950) ou Descrição..." oninput="handleQuickSearch()">
+            </div>
+
+            <div id="quickSearchResult" class="p-3 border rounded bg-white">
+              <p class="text-muted text-center my-3">Digite no campo acima para buscar as informações do produto.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 2: TABELA GERAL / GERENCIAMENTO -->
+      <div class="tab-pane fade" id="list-panel" role="tabpanel">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <input type="text" id="tableSearchInput" class="form-control w-50" placeholder="Filtrar tabela por qualquer campo..." oninput="renderTable()">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal" onclick="openAddModal()">
+              <i class="fa-solid fa-plus me-1"></i> Adicionar Item
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Prateleira</th>
+                  <th>Código</th>
+                  <th>Descrição do Item</th>
+                  <th>Quantidade</th>
+                  <th>Observação (SKU)</th>
+                  <th>Status</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryTableBody">
+                <!-- Tabela preenchida dinamicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal Adicionar / Editar -->
+  <div class="modal fade" id="itemModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitle">Adicionar Item</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="itemForm">
+            <input type="hidden" id="editIndex">
+            <div class="mb-3">
+              <label class="form-label">Prateleira</label>
+              <input type="text" id="inputShelf" class="form-control" required placeholder="Ex: 2E">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Código do Item</label>
+              <input type="number" id="inputCode" class="form-control" required placeholder="Ex: 1950">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Descrição do Item</label>
+              <input type="text" id="inputDesc" class="form-control" required placeholder="Ex: DECAL XTROY SV 218">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Quantidade</label>
+              <input type="number" id="inputQty" class="form-control" value="0">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Observações (SKU)</label>
+              <input type="text" id="inputObs" class="form-control" placeholder="Ex: 6001950">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Salvar Alterações</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
